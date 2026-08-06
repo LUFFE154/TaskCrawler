@@ -1,5 +1,5 @@
 # TaskCrawler
-![TaskCrawler][<img width="1896" height="947" alt="TaskCrawler" src="https://github.com/user-attachments/assets/cea832ce-8868-479f-a398-5a05d86caf15" />]
+<img width="1896" height="947" alt="TaskCrawler" src="https://github.com/user-attachments/assets/cea832ce-8868-479f-a398-5a05d86caf15" />
 ## Asynchronous Web Scraping Job Processing Pipeline
 
 TaskCrawler is an asynchronous web scraping processing system built with **FastAPI, PostgreSQL, Redis and Docker**.
