@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TaskCrawler UI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: {
+              950: '#050816',
+              900: '#0b1020',
+              800: '#121a31',
+              700: '#1c2746'
+            },
+            neon: {
+              400: '#5eead4',
+              500: '#2dd4bf',
+              600: '#14b8a6'
+            }
+          },
+          boxShadow: {
+            glow: '0 0 0 1px rgba(94, 234, 212, 0.14), 0 12px 40px rgba(2, 6, 23, 0.45)'
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      background:
+        radial-gradient(circle at top left, rgba(20, 184, 166, 0.12), transparent 28%),
+        radial-gradient(circle at top right, rgba(96, 165, 250, 0.12), transparent 24%),
+        linear-gradient(180deg, #050816 0%, #0b1020 100%);
+    }
+
+    .glass {
+      background: rgba(10, 16, 32, 0.72);
+      backdrop-filter: blur(18px);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .grid-overlay {
+      background-image:
+        linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.82), transparent 92%);
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-100 antialiased">
+  <div class="pointer-events-none fixed inset-0 grid-overlay opacity-40"></div>
+
+  <main class="relative mx-auto flex min-h-screen max-w-6xl items-center px-4 py-10 sm:px-6 lg:px-8">
+    <div class="w-full space-y-8">
+      <header class="text-center">
+        <div class="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200 shadow-glow">
+          <span class="h-2 w-2 rounded-full bg-neon-400"></span>
+          TaskCrawler Control Panel
+        </div>
+        <h1 class="text-3xl font-semibold tracking-tight text-white sm:text-5xl">Async Scraping Queue Console</h1>
+        <p class="mx-auto mt-4 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+          Submit scraping jobs, inspect status, and monitor results from a single clean interface.
+        </p>
+      </header>
+
+      <section class="grid gap-6 lg:grid-cols-2">
+        <article class="glass rounded-3xl p-6 shadow-glow">
+          <div class="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-semibold text-white">Submit New Job</h2>
+              <p class="mt-1 text-sm text-slate-400">Queue a URL for scraping through the FastAPI backend.</p>
+            </div>
+            <span class="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-300">POST /api/v1/jobs</span>
+          </div>
+
+          <form id="submitForm" class="space-y-4">
+            <label class="block">
+              <span class="mb-2 block text-sm font-medium text-slate-200">Target URL</span>
+              <input
+                id="urlInput"
+                type="url"
+                required
+                placeholder="https://example.com"
+                class="w-full rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-neon-400/70 focus:ring-2 focus:ring-neon-400/20"
+              />
+            </label>
+
+            <button
+              type="submit"
+              class="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-neon-600 to-cyan-500 px-4 py-3 font-semibold text-slate-950 transition hover:brightness-110 active:scale-[0.99]"
+            >
+              Start Scraping
+            </button>
+          </form>
+
+          <p class="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+            Idempotency Warning: submitting the same URL again returns the existing job instead of creating a duplicate.
+          </p>
+        </article>
+
+        <article class="glass rounded-3xl p-6 shadow-glow">
+          <div class="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-semibold text-white">Job Status Checker</h2>
+              <p class="mt-1 text-sm text-slate-400">Look up a job by ID and watch it update automatically.</p>
+            </div>
+            <span class="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-xs text-slate-300">GET /api/v1/jobs/{id}</span>
+          </div>
+
+          <form id="statusForm" class="space-y-4">
+            <label class="block">
+              <span class="mb-2 block text-sm font-medium text-slate-200">Job ID</span>
+              <input
+                id="jobIdInput"
+                type="text"
+                required
+                placeholder="550e8400-e29b-41d4-a716-446655440000"
+                class="w-full rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-neon-400/70 focus:ring-2 focus:ring-neon-400/20"
+              />
+            </label>
+
+            <button
+              type="submit"
+              class="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 font-semibold text-white transition hover:border-neon-400/40 hover:bg-slate-800"
+            >
+              Check Status
+            </button>
+          </form>
+        </article>
+      </section>
+
+      <section class="glass rounded-3xl p-6 shadow-glow">
+        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 class="text-xl font-semibold text-white">Results Display</h2>
+            <p class="mt-1 text-sm text-slate-400">API responses, current status, and job metadata appear here.</p>
+          </div>
+          <div id="autoRefreshState" class="hidden rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-200">
+            Auto-refresh active
+          </div>
+        </div>
+
+        <div id="resultPanel" class="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-5">
+          <div class="text-sm text-slate-400">No results yet. Submit a job or check an existing one.</div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = 'http://127.0.0.1:8000/api/v1/jobs';
+    const submitForm = document.getElementById('submitForm');
+    const statusForm = document.getElementById('statusForm');
+    const urlInput = document.getElementById('urlInput');
+    const jobIdInput = document.getElementById('jobIdInput');
+    const resultPanel = document.getElementById('resultPanel');
+    const autoRefreshState = document.getElementById('autoRefreshState');
+
+    let autoRefreshTimer = null;
+    let trackedJobId = null;
+    let trackedStatus = null;
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function badgeClass(status) {
+      switch (status) {
+        case 'COMPLETED':
+          return 'border-emerald-400/20 bg-emerald-400/15 text-emerald-200';
+        case 'PROCESSING':
+          return 'border-amber-400/20 bg-amber-400/15 text-amber-100';
+        case 'PENDING':
+          return 'border-sky-400/20 bg-sky-400/15 text-sky-100';
+        case 'FAILED':
+          return 'border-rose-400/20 bg-rose-400/15 text-rose-100';
+        default:
+          return 'border-slate-700 bg-slate-800/80 text-slate-200';
+      }
+    }
+
+    function renderStatusBadge(status) {
+      return `<span class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold tracking-wide ${badgeClass(status)}">${escapeHtml(status || 'UNKNOWN')}</span>`;
+    }
+
+    function renderJson(data) {
+      return `<pre class="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm leading-6 text-slate-200">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`;
+    }
+
+    function renderJobCard(data, heading) {
+      const title = data.scraped_title ? escapeHtml(data.scraped_title) : '<span class="text-slate-500">No title captured yet</span>';
+      const errorLog = data.error_log ? escapeHtml(data.error_log) : '<span class="text-slate-500">No errors logged</span>';
+
+      resultPanel.innerHTML = `
+        <div class="flex flex-col gap-4 border-b border-slate-800 pb-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p class="text-sm uppercase tracking-[0.24em] text-slate-500">${escapeHtml(heading)}</p>
+            <h3 class="mt-1 break-all text-lg font-semibold text-white">${escapeHtml(data.url)}</h3>
+          </div>
+          <div>${renderStatusBadge(data.status)}</div>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2">
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+            <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Job Details</div>
+            <div class="mt-3 space-y-2 text-sm text-slate-200">
+              <div><span class="text-slate-500">Job ID:</span> <span class="break-all">${escapeHtml(data.id)}</span></div>
+              <div><span class="text-slate-500">Retry Count:</span> ${escapeHtml(data.retry_count)}</div>
+              <div><span class="text-slate-500">Created At:</span> ${escapeHtml(data.created_at)}</div>
+              <div><span class="text-slate-500">Updated At:</span> ${escapeHtml(data.updated_at)}</div>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+            <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Scraped Output</div>
+            <div class="mt-3 space-y-3 text-sm">
+              <div>
+                <div class="mb-1 text-slate-500">Title</div>
+                <div class="text-slate-100">${title}</div>
+              </div>
+              <div>
+                <div class="mb-1 text-slate-500">Error Log</div>
+                <div class="text-slate-100">${errorLog}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-2">
+          <div class="mb-2 text-xs uppercase tracking-[0.2em] text-slate-500">Raw JSON</div>
+          ${renderJson(data)}
+        </div>
+      `;
+    }
+
+    function renderError(message) {
+      resultPanel.innerHTML = `
+        <div class="rounded-2xl border border-rose-400/20 bg-rose-400/10 p-4 text-rose-100">
+          ${escapeHtml(message)}
+        </div>
+      `;
+    }
+
+    async function callApi(url, options = {}) {
+      let response;
+      try {
+        response = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          ...options
+        });
+      } catch (error) {
+        alert('Backend is offline or unreachable. Please start the API and try again.');
+        throw error;
+      }
+
+      let payload = null;
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        payload = await response.json();
+      } else {
+        payload = await response.text();
+      }
+
+      if (!response.ok) {
+        const detail = typeof payload === 'object' && payload !== null && 'detail' in payload ? payload.detail : response.statusText;
+        throw new Error(detail || 'Request failed');
+      }
+
+      return payload;
+    }
+
+    function stopAutoRefresh() {
+      if (autoRefreshTimer !== null) {
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
+      }
+      autoRefreshState.classList.add('hidden');
+    }
+
+    function startAutoRefresh(jobId, currentStatus) {
+      trackedJobId = jobId;
+      trackedStatus = currentStatus;
+      if (autoRefreshTimer !== null) {
+        clearInterval(autoRefreshTimer);
+      }
+      autoRefreshState.classList.remove('hidden');
+      autoRefreshTimer = setInterval(async () => {
+        if (!trackedJobId || !['PENDING', 'PROCESSING'].includes(trackedStatus)) {
+          stopAutoRefresh();
+          return;
+        }
+        try {
+          const job = await callApi(`${API_BASE}/${trackedJobId}`);
+          trackedStatus = job.status;
+          renderJobCard(job, 'Live Status');
+          if (!['PENDING', 'PROCESSING'].includes(job.status)) {
+            stopAutoRefresh();
+          }
+        } catch (error) {
+          stopAutoRefresh();
+          renderError(error.message || 'Unable to refresh job status');
+        }
+      }, 2000);
+    }
+
+    submitForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const url = urlInput.value.trim();
+      if (!url) {
+        return;
+      }
+
+      try {
+        const job = await callApi(API_BASE, {
+          method: 'POST',
+          body: JSON.stringify({ url })
+        });
+        renderJobCard(job, 'Submission Result');
+        jobIdInput.value = job.id;
+        startAutoRefresh(job.id, job.status);
+      } catch (error) {
+        renderError(error.message || 'Failed to submit job');
+      }
+    });
+
+    statusForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const jobId = jobIdInput.value.trim();
+      if (!jobId) {
+        return;
+      }
+
+      try {
+        const job = await callApi(`${API_BASE}/${jobId}`);
+        renderJobCard(job, 'Status Result');
+        startAutoRefresh(job.id, job.status);
+      } catch (error) {
+        stopAutoRefresh();
+        renderError(error.message || 'Failed to check job status');
+      }
+    });
+
+    window.addEventListener('beforeunload', stopAutoRefresh);
+  </script>
+</body>
+</html>

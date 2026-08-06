@@ -1,0 +1,30 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: taskcrawler-postgres
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_DB: app_db
+      POSTGRES_USER: app_db
+      POSTGRES_PASSWORD: app_db
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U app_db -d app_db']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  redis:
+    image: redis:7-alpine
+    container_name: taskcrawler-redis
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 3s
