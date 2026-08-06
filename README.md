@@ -165,6 +165,7 @@ Before running the project, install:
 - Python 3.11+
 - Docker
 - Docker Compose
+- PostegreSQL
 
 ---
 
@@ -173,7 +174,7 @@ Before running the project, install:
 ## 1. Clone repository
 
 ```bash
-git clone https://github.com/your-user/taskcrawler.git
+git clone https://github.com/LUFFE154/TaskCrawler
 
 cd TaskCrawler
 ```
