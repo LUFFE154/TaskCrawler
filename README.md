@@ -1,68 +1,440 @@
-## TaskCrawler
-# Distributed Data Ingestion & Resilient Feature Engineering Engine
+# TaskCrawler
 
-An enterprise-grade, asynchronous, and non-blocking data ingestion pipeline built to extract high-value structured metadata, clean content, and media graphs from web resources. This system decouples client requests from intense network operations, ensuring maximum throughput and anti-fragile execution under heavy load.
+## Asynchronous Web Scraping Job Processing Pipeline
 
-##  Architecture Overview
+TaskCrawler is an asynchronous web scraping processing system built with **FastAPI, PostgreSQL, Redis and Docker**.
 
-The system implements a decoupled microservices-inspired pattern using an API Gateway layer, atomic persistence, and asynchronous background processing loops.
-##  Key Engineering Features
+The project demonstrates a scalable backend architecture where incoming scraping requests are decoupled from heavy network operations through a background worker and message queue.
 
-* **Strict Request Idempotency:** Intercepts incoming payloads and hashes target URLs against the database. Duplicate requests are immediately rejected/returned with a `200 OK` status, preventing redundant network IO and database bloat.
-* **Non-Blocking IO Concurrency:** Built entirely on top of Python's `async/await` paradigm using FastAPI and `httpx.AsyncClient`. Server worker threads are never blocked while waiting for external network responses.
-* **Anti-Fragile Resilience Layer:** Features custom error-handling intercepts with an **Exponential Backoff and Jitter** retry algorithm. Prevents target server hammering and thundering herd problems during transient network failures.
-* **Structured Semantic Parsing:** Strips advertising scripts, menus, and cookies to isolate high-value fields (OpenGraph SEO tags, isolated inner/outer link graphs, sanitised text bodies) tailored for Vector Database ingestion (RAG).
+Instead of keeping API requests waiting for scraping operations, the system creates jobs, stores their state, pushes tasks into Redis, and processes them asynchronously.
 
-##  Tech Stack
+---
 
-* **Language:** Python 3.11+
-* **Framework:** FastAPI
-* **Async Database Driver:** SQLAlchemy (Asyncio) + Asyncpg
-* **Database:** PostgreSQL
-* **Caching & Broker Abstraction:** Redis / In-Memory Background Loops
-* **Containerization:** Docker & Docker Compose
+# Architecture Overview
 
-##  Getting Started
+The system follows an event-driven architecture:
 
-### Prerequisites
-* Docker and Docker Compose installed.
-* Python 3.11+ (if running outside Docker for development).
+```
+                 Client
+                   |
+                   |
+                   v
+            FastAPI REST API
+                   |
+          +--------+--------+
+          |                 |
+          v                 v
+    PostgreSQL          Redis Queue
+    Job Storage        Message Broker
+                            |
+                            |
+                            v
+                    Async Background Worker
+                            |
+                            |
+                            v
+                    HTTP Web Scraper
+                            |
+                            |
+                            v
+                    PostgreSQL Update
+```
 
-### 1. Spin up the Infrastructure
-Launch the database, caching broker, and backend containers in detached mode:
+---
+
+# Features
+
+## Asynchronous Job Processing
+
+The API does not execute scraping operations during the HTTP request lifecycle.
+
+When a URL is submitted:
+
+1. A scraping job is created.
+2. The job is stored in PostgreSQL.
+3. A message is published to Redis.
+4. A background worker processes the task.
+5. The final result is persisted.
+
+This allows the API to remain responsive even during slow network operations.
+
+---
+
+## Queue-Based Worker System
+
+Redis is used as a lightweight message broker.
+
+The worker continuously listens for new scraping tasks using blocking queue operations.
+
+Benefits:
+
+- Decoupled processing
+- Better scalability
+- Independent worker execution
+- Non-blocking API requests
+
+---
+
+## Idempotent Job Creation
+
+The system prevents duplicated scraping tasks.
+
+When a URL is submitted, the API checks if the same resource already exists.
+
+If a previous job exists:
+
+- The existing record is returned.
+- A new scraping operation is not created.
+
+This avoids unnecessary network requests and duplicate processing.
+
+---
+
+## Resilient Error Handling
+
+The scraping worker includes failure recovery mechanisms:
+
+- Automatic retries
+- Exponential backoff
+- Random jitter delays
+- Error persistence
+
+Temporary network problems do not crash the worker.
+
+Failed jobs are stored with error information for later inspection.
+
+---
+
+## Async Network Processing
+
+The application uses asynchronous I/O throughout the stack:
+
+- FastAPI async endpoints
+- SQLAlchemy AsyncIO
+- asyncpg PostgreSQL driver
+- redis.asyncio
+- httpx.AsyncClient
+
+This allows efficient handling of multiple operations without blocking threads.
+
+---
+
+# Technology Stack
+
+## Backend
+
+- Python 3.11+
+- FastAPI
+- Pydantic
+- SQLAlchemy AsyncIO
+- Asyncpg
+- HTTPX
+
+## Infrastructure
+
+- PostgreSQL 16
+- Redis 7
+- Docker
+- Docker Compose
+
+---
+
+# Project Structure
+
+```
+TaskCrawler/
+│
+├── main.py              # FastAPI application and worker logic
+├── database.py          # Async database configuration
+├── models.py            # SQLAlchemy database models
+├── config.py            # Environment configuration
+│
+├── docker-compose.yml   # Infrastructure setup
+├── requirements.txt     # Python dependencies
+├── .env                 # Environment variables
+│
+└── README.md
+```
+
+---
+
+# Requirements
+
+Before running the project, install:
+
+- Python 3.11+
+- Docker
+- Docker Compose
+
+---
+
+# Running the Project
+
+## 1. Clone repository
+
+```bash
+git clone https://github.com/your-user/taskcrawler.git
+
+cd TaskCrawler
+```
+
+---
+
+## 2. Start infrastructure
+
+Start PostgreSQL and Redis containers:
+
 ```bash
 docker-compose up -d
 ```
 
-### 2. Install Dependencies (Local Dev)
+The project requires:
+
+```
+PostgreSQL
+localhost:5432
+
+Redis
+localhost:6379
+```
+
+---
+
+## 3. Install dependencies
+
+Create a virtual environment:
+
+```bash
+python -m venv .venv
+```
+
+Activate:
+
+Windows:
+
+```bash
+.venv\Scripts\activate
+```
+
+Linux/macOS:
+
+```bash
+source .venv/bin/activate
+```
+
+Install packages:
+
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Run the Application Gateway
+---
+
+## 4. Configure environment variables
+
+Create a `.env` file:
+
+```env
+POSTGRES_ASYNC_URL=postgresql+asyncpg://app_db:app_db@127.0.0.1:5432/app_db
+
+REDIS_URL=redis://127.0.0.1:6379/0
+```
+
+---
+
+## 5. Start API
+
+Run:
+
 ```bash
 uvicorn main:app --reload
 ```
-The API documentation will be available at `http://127.0.0`.
 
-##  Validating System Behavior
+The API will be available at:
 
-### 1. Ingestion & Asynchronous Decoupling
-Send a `POST` request to queue a complex heavy resource (e.g., a YouTube Video or Amazon Product):
-```bash
-curl -X 'POST' \
-  'http://127.0.0' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "url": "https://youtube.com"
-}'
 ```
-**Expected Response (`202 Accepted`):** The gateway returns a `job_id` (UUID) instantly. It does not wait for the scraping task to complete.
+http://127.0.0.1:8000
+```
 
-### 2. Idempotency Validation
-Fire the exact same `POST` request again. The system will bypass worker allocation and instantly return the pre-existing database record ID with a `200 OK` status, proving the ingestion shield works.
+Swagger documentation:
 
-### 3. Network Failure Resilience Check
-Submit a URL that returns infrastructure redirect responses (like `https://google.com` without `www` when redirects are unhandled) or a dead domain. 
-Inspect the status via `GET /api/v1/jobs/{job_id}`. You will observe the `retry_count` incrementing incrementally over randomized intervals, followed by a graceful termination state (`FAILED`) logging exact system tracebacks into the database JSONB block for SRE audit profiling.
+```
+http://127.0.0.1:8000/docs
+```
+
+---
+
+# API Usage
+
+## Create Scraping Job
+
+### Request
+
+```
+POST /api/v1/jobs
+```
+
+Example:
+
+```bash
+curl -X POST \
+http://127.0.0.1:8000/api/v1/jobs \
+-H "Content-Type: application/json" \
+-d "{\"url\":\"https://example.com\"}"
+```
+
+---
+
+### Response
+
+```json
+{
+  "id": "5c5ff4a0-9e0e-41bc-80fb-9c98f6f9c095",
+  "url": "https://example.com",
+  "status": "PENDING",
+  "retry_count": 0,
+  "scraped_title": null,
+  "error_log": null
+}
+```
+
+The API immediately returns the job identifier while processing continues asynchronously.
+
+---
+
+# Check Job Status
+
+## Request
+
+```
+GET /api/v1/jobs/{job_id}
+```
+
+Example:
+
+```
+GET /api/v1/jobs/5c5ff4a0-9e0e-41bc-80fb-9c98f6f9c095
+```
+
+---
+
+## Job Lifecycle
+
+A job follows this lifecycle:
+
+```
+PENDING
+   |
+   v
+PROCESSING
+   |
+   +------------+
+   |            |
+   v            v
+COMPLETED     FAILED
+```
+
+---
+
+# Example Result
+
+Successful processing:
+
+```json
+{
+  "status": "COMPLETED",
+  "retry_count": 0,
+  "scraped_title": "Example Domain",
+  "error_log": null
+}
+```
+
+---
+
+# Failure Handling Example
+
+If a website cannot be reached:
+
+```json
+{
+  "status": "FAILED",
+  "retry_count": 3,
+  "error_log": "Connection timeout"
+}
+```
+
+The worker retries automatically before marking the job as failed.
+
+---
+
+# Engineering Decisions
+
+## Why Redis?
+
+Redis provides a simple and fast queue mechanism between the API and workers.
+
+Advantages:
+
+- Low latency
+- Easy horizontal scaling
+- Reliable message passing
+
+---
+
+## Why AsyncIO?
+
+Web scraping is highly I/O-bound.
+
+Using asynchronous programming allows the application to:
+
+- Handle multiple network operations efficiently
+- Avoid blocking execution
+- Improve throughput
+
+---
+
+## Why PostgreSQL?
+
+PostgreSQL stores:
+
+- Job metadata
+- Processing state
+- Results
+- Errors
+
+It provides reliable persistence and transactional guarantees.
+
+---
+
+# Future Improvements
+
+Planned improvements:
+
+- Multiple worker processes
+- Distributed worker scaling
+- Better HTML extraction
+- OpenGraph metadata extraction
+- Link relationship mapping
+- Authentication and authorization
+- Rate limiting
+- Monitoring with Prometheus/Grafana
+- Docker production deployment
+- Vector database integration for RAG pipelines
+
+---
+
+# License
+
+This project is licensed under the MIT License.
+
+---
+
+# Author
+
+Luiz Fernando Pio Ferreira
+
+Backend Developer
+
+Technologies:
+
+Python • FastAPI • PostgreSQL • Redis • Docker • Async Systems
